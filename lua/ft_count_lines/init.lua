@@ -19,13 +19,14 @@ vim.treesitter.query.set(
 local default_options = {
 	enable_on_start = false,
 	keybinding = "<leader>Fc",
-	line_limit = 25, -- Exposed this so users can change the "Error" threshold
-	pattern = "*.c", -- Exposed the file pattern
+	line_limit = 25, -- Default threshold for "Error" highlight
+	pattern = "*.c", -- Default file pattern
 	formatter = function(count)
 		return "─ " .. count .. " lines ─"
 	end,
 }
 
+-- Create the config table (copied from defaults initially)
 M.config = vim.deepcopy(default_options)
 
 -- Function to get current buffer lines
@@ -33,7 +34,6 @@ local function get_buffer_lines(bufnr)
 	return vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 end
 
--- Function to run the counting of function lines and set extmarks
 -- Function to run the counting of function lines and set extmarks
 local function set_extmarks(bufnr)
 	local filetype = vim.api.nvim_buf_get_option(bufnr, "filetype")
@@ -89,8 +89,11 @@ local function set_extmarks(bufnr)
 		local start_row, _, end_row, _ = node:range()
 		local result = end_row - start_row - 2
 
+		-- Use the configured formatter
 		local message = M.config.formatter(result)
-		local hl_group = result > 25 and "Error" or "Comment"
+
+		-- Use the configured line limit (Fix: was hardcoded to 25)
+		local hl_group = result > M.config.line_limit and "Error" or "Comment"
 
 		-- Set extmark above the function
 		vim.api.nvim_buf_set_extmark(bufnr, ns, start_row, 0, {
@@ -113,24 +116,24 @@ end
 local function set_autocmd()
 	-- Set extmarks on buffer write (after the file is saved)
 	vim.api.nvim_create_autocmd({ "BufWritePost" }, {
-		pattern = { "*.c" }, -- Apply to .c files
+		pattern = { M.config.pattern }, -- Fix: Use configured pattern
 		group = group,
 		callback = function(event)
 			if not enabled then
 				return
-			end -- Check if counting is enabled
-			set_extmarks(event.buf) -- Run counting diagnostics on save
+			end
+			set_extmarks(event.buf)
 		end,
 	})
 
 	-- Detect line changes without saving the file
 	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
-		pattern = { "*.c" }, -- Apply to .c files
+		pattern = { M.config.pattern }, -- Fix: Use configured pattern
 		group = group,
 		callback = function(event)
 			if not enabled then
 				return
-			end -- Check if counting is enabled
+			end
 
 			local bufnr = event.buf
 			local changed = false
@@ -154,10 +157,10 @@ end
 function M.enable()
 	if not enabled then
 		enabled = true
-		set_autocmd() -- Reset autocommands when enabling
+		set_autocmd()
 		-- Run extmarks immediately after enabling
-		local bufnr = vim.api.nvim_get_current_buf() -- Get the current buffer number
-		set_extmarks(bufnr) -- Run counting diagnostics immediately
+		local bufnr = vim.api.nvim_get_current_buf()
+		set_extmarks(bufnr)
 	end
 end
 
@@ -165,8 +168,8 @@ end
 function M.disable()
 	if enabled then
 		enabled = false
-		vim.api.nvim_clear_autocmds({ group = group }) -- Clear autocommands to disable
-		vim.api.nvim_buf_clear_namespace(0, ns, 0, -1) -- Clear extmarks when disabled
+		vim.api.nvim_clear_autocmds({ group = group })
+		vim.api.nvim_buf_clear_namespace(0, ns, 0, -1)
 	end
 end
 
@@ -189,18 +192,20 @@ end
 
 -- Setup function to initialize the plugin with options
 function M.setup(opts)
-	-- Merge user-provided options with defaults
-	opts = opts or {}
-	opts = vim.tbl_extend("force", default_options, opts)
+	-- Merge user-provided options into M.config (Fix: updates the global config)
+	M.config = vim.tbl_deep_extend("force", M.config, opts or {})
 
-	vim.api.nvim_set_keymap(
-		"n",
-		opts.keybinding,
-		"<CMD>lua require('ft_count_lines').toggle()<CR>",
-		{ noremap = true, silent = true, desc = "Toggle Count Lines Feature" }
-	)
-	if opts.enable_on_start then
-		M.enable() -- Enable the feature if configured to do so on startup
+	-- Set keybinding using vim.keymap.set (Cleaner and uses function ref)
+	if M.config.keybinding then
+		vim.keymap.set("n", M.config.keybinding, M.toggle, {
+			noremap = true,
+			silent = true,
+			desc = "Toggle Count Lines Feature",
+		})
+	end
+
+	if M.config.enable_on_start then
+		M.enable()
 	end
 end
 
