@@ -13,12 +13,21 @@ To install with Lazy.nvim:
 
 ```lua
 {
-  "FtVim/ft_count_lines.nvim",
-  config = function()
-    require("ft_count_lines").setup({
-        enable_on_start = true --Default is false
-    })
-  end
+  "Stefanistkuhl/ft_count_lines.nvim",
+  ft = "c", -- Optional: Load only for C files
+  opts = {
+    -- Enable automatically when opening a C file
+    enable_on_start = true, 
+    -- Change the Norminette limit (default is 25)
+    line_limit = 25, 
+    -- Keybinding to toggle the plugin
+    keybinding = "<leader>Fc",
+    -- Customize how the line count is displayed
+    formatter = function(count)
+      return "─ " .. count .. " lines ─"
+    end,
+  },
+
 }
 ```
 ## Usage
