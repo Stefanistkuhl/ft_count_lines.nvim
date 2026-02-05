@@ -17,9 +17,16 @@ vim.treesitter.query.set(
 
 -- Default options
 local default_options = {
-	enable_on_start = false, -- Whether to enable the count lines feature when Neovim starts
-	keybinding = "<leader>Fc", -- Default keybinding for enabling the count lines feature
+	enable_on_start = false,
+	keybinding = "<leader>Fc",
+	line_limit = 25, -- Exposed this so users can change the "Error" threshold
+	pattern = "*.c", -- Exposed the file pattern
+	formatter = function(count)
+		return "─ " .. count .. " lines ─"
+	end,
 }
+
+M.config = vim.deepcopy(default_options)
 
 -- Function to get current buffer lines
 local function get_buffer_lines(bufnr)
@@ -82,7 +89,7 @@ local function set_extmarks(bufnr)
 		local start_row, _, end_row, _ = node:range()
 		local result = end_row - start_row - 2
 
-		local message = "─ " .. result .. " lines ─"
+		local message = M.config.formatter(result)
 		local hl_group = result > 25 and "Error" or "Comment"
 
 		-- Set extmark above the function
