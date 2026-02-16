@@ -13,7 +13,7 @@ To install with Lazy.nvim:
 
 ```lua
 {
-  "Stefanistkuhl/ft_count_lines.nvim",
+  "0xveya/ft_count_lines.nvim",
   ft = "c", -- Optional: Load only for C files
   opts = {
     -- Enable automatically when opening a C file
